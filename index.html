@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>أكاديمية عمر</title>
+<style>
+body{font-family:Arial;background:#111;color:#fff;text-align:center;padding:20px}
+input,textarea{width:90%;padding:12px;margin:8px;border-radius:10px;border:none}
+button{padding:12px 25px;background:#f5c518;color:#000;border:none;border-radius:10px;font-weight:bold;cursor:pointer}
+.card{background:#222;padding:20px;border-radius:15px;margin:15px 0;text-align:right}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<h1>🎭 أكاديمية عمر</h1>
+<div id="authBox">
+<h3>تسجيل دخول الطالب</h3>
+<input id="email" placeholder="الإيميل">
+<input id="password" type="password" placeholder="كلمة السر">
+<br><button onclick="login()">دخول</button>
+<button onclick="register()">تسجيل جديد</button>
+<p id="msg"></p>
+</div>
+<div id="studentBox" class="hidden">
+<h2>أهلاً فيك 👋</h2>
+<div id="courses"></div>
+<button onclick="logout()">خروج</button>
+</div>
+<div id="adminBox" class="hidden">
+<h2>لوحة المدير - عمر</h2>
+<h3>إضافة دورة بـ HTML</h3>
+<input id="courseTitle" placeholder="اسم الدورة">
+<textarea id="courseHtml" rows="6" placeholder="الصق كود HTML الدورة هنا"></textarea>
+<button onclick="addCourse()">حفظ الدورة</button>
+<h3>الدورات الحالية</h3>
+<div id="adminCourses"></div>
+<h3>الطلاب المسجلين</h3>
+<div id="studentsList"></div>
+<button onclick="logout()">خروج</button>
+</div>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDPYkjQ0PxgFIJkUUnmypCPx4ELK_JCpX8",
+  authDomain: "courses-by-omar.firebaseapp.com",
+  projectId: "courses-by-omar",
+  storageBucket: "courses-by-omar.firebasestorage.app",
+  messagingSenderId: "214835337564",
+  appId: "1:214835337564:web:f4ce4419eed0159a360999",
+  measurementId: "G-TRV95KED7H"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const ADMIN_EMAIL = "Just.syrian99@gmail.com";
+
+window.register = async () => {
+  try{
+    const u = await createUserWithEmailAndPassword(auth, email.value, password.value);
+    await setDoc(doc(db,"students",u.user.uid),{email:email.value, created:new Date().toLocaleString()});
+    document.getElementById("msg").innerText="تم التسجيل بنجاح ✅";
+  }catch(e){ document.getElementById("msg").innerText=e.message; }
+}
+window.login = async () => {
+  try{ await signInWithEmailAndPassword(auth, email.value, password.value); }
+  catch(e){ document.getElementById("msg").innerText="خطأ بالدخول"; }
+}
+window.logout = async () => { await signOut(auth); location.reload(); }
+window.addCourse = async () => {
+  await addDoc(collection(db,"courses"),{title:courseTitle.value, html:courseHtml.value});
+  alert("تم حفظ الدورة ✅"); loadCourses();
+}
+async function loadCourses(){
+  const snap = await getDocs(collection(db,"courses"));
+  let html=""; let adminHtml="";
+  snap.forEach(d=>{
+    const c=d.data();
+    html+=`<div class="card"><h3>${c.title}</h3><div>${c.html}</div></div>`;
+    adminHtml+=`<div class="card"><b>${c.title}</b> <button onclick="delCourse('${d.id}')">حذف</button></div>`;
+  });
+  document.getElementById("courses").innerHTML=html||"لا يوجد دورات بعد";
+  document.getElementById("adminCourses").innerHTML=adminHtml;
+}
+window.delCourse = async (id) => { await deleteDoc(doc(db,"courses",id)); loadCourses(); }
+async function loadStudents(){
+  const snap = await getDocs(collection(db,"students"));
+  let h="";
+  snap.forEach(d=>{ h+=`<div class="card">${d.data().email} <button onclick="delStudent('${d.id}')">حذف الطالب</button></div>` });
+  document.getElementById("studentsList").innerHTML=h||"لا يوجد طلاب";
+}
+window.delStudent = async (id) => { await deleteDoc(doc(db,"students",id)); loadStudents(); }
+onAuthStateChanged(auth, (user)=>{
+  if(!user) return;
+  document.getElementById("authBox").classList.add("hidden");
+  loadCourses();
+  if(user.email===ADMIN_EMAIL){
+    document.getElementById("adminBox").classList.remove("hidden");
+    loadStudents();
+  } else {
+    document.getElementById("studentBox").classList.remove("hidden");
+  }
+});
+</script>
+</body>
+</html>
